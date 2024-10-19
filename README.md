@@ -17,6 +17,7 @@ This extension is for AUTOMATIC1111's [Stable Diffusion web UI](https://github.c
     - ADetailer
     - Dynamic Prompting
     - Multidiffusion upscale/Tiled Diffusion & VAE
+    - Faceswaplab
 
 ### Usage
 
