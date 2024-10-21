@@ -6,7 +6,6 @@ state.extensions['faceswaplab'] = (function () {
 
     let container = null;
     let store = null;
-    let fslTabs = [];
 
     function handleToggle() {
         let value = store.get('toggled');
@@ -20,6 +19,24 @@ state.extensions['faceswaplab'] = (function () {
             let span = this.querySelector('.transition, .icon');
             store.set('toggled', span.style.transform !== 'rotate(90deg)');
             load();
+        });
+    }
+    
+    function handleUnitToggles() {
+        container.querySelectorAll('.gradio-accordion').forEach(accordion => {
+            let storeId = accordion.id.replace("faceswaplab_", "") + '_toggled';
+            let value = store.get(storeId);
+            let toggleBtn = accordion.querySelector('div.cursor-pointer, .label-wrap');
+
+            if (value && value === 'true') {
+                state.utils.triggerEvent(toggleBtn, 'click');
+                load();
+            }
+            toggleBtn.addEventListener('click', function () {
+                let span = this.querySelector('.transition, .icon');
+                store.set(storeId, span.style.transform !== 'rotate(90deg)');
+                load();
+            });
         });
     }
 
@@ -51,69 +68,73 @@ state.extensions['faceswaplab'] = (function () {
     }
 
     function handleCheckboxes() {
-        fslTabs.forEach(({ container, store }) => {
-            let checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(function (checkbox) {
-                let label = checkbox.nextElementSibling;
-                let id = state.utils.txtToId(label.textContent);
-                let value = store.get(id);
-                if (value) {
-                    state.utils.setValue(checkbox, value, 'change');
-                }
-                checkbox.addEventListener('change', function () {
-                    store.set(id, this.checked);
-                });
+        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            let id = checkbox.parentElement.parentElement.id.replace("faceswaplab_", "");
+            let value = store.get(id);
+            if (value) {
+                state.utils.setValue(checkbox, value, 'change');
+            }
+            checkbox.addEventListener('change', function () {
+                store.set(id, this.checked);
             });
         });
     }
 
     function handleSelects() {
-        fslTabs.forEach(({ container, store }) => {
-            container.querySelectorAll('.gradio-dropdown').forEach(select => {
-                let id = state.utils.txtToId(select.querySelector('label').firstChild.textContent);
-                let value = store.get(id);
-                state.utils.handleSelect(select, id, store);
-                if (id === 'preprocessor' && value && value.toLowerCase() !== 'none') {
-                    state.utils.onNextUiUpdates(handleSliders); // update new sliders if needed
-                }
-            });
+        container.querySelectorAll('.gradio-dropdown').forEach(select => {
+            let id = select.id.replace("faceswaplab_", "");
+            let value = store.get(id);
+            state.utils.handleSelect(select, id, store);
+            if (id === 'preprocessor' && value && value.toLowerCase() !== 'none') {
+                state.utils.onNextUiUpdates(handleSliders); // update new sliders if needed
+            }
         });
     }
 
     function handleSliders() {
-        fslTabs.forEach(({ container, store }) => {
-            let sliders = container.querySelectorAll('input[type="range"]');
-            sliders.forEach(function (slider) {
-                let label = slider.previousElementSibling.querySelector('label span');
-                let id = state.utils.txtToId(label.textContent);
-                let value = store.get(id);
-                if (value) {
-                    state.utils.setValue(slider, value, 'change');
-                }
-                slider.addEventListener('change', function () {
+        container.querySelectorAll('input[type="range"]').forEach(slider => {
+            let id = slider.parentElement.id.replace("faceswaplab_", "");
+            let value = store.get(id);
+            if (value) {
+                state.utils.setValue(slider, value, 'change');
+            }
+            slider.addEventListener('change', function () {
+                store.set(id, this.value);
+            });
+        });
+    }
+
+    function handleRadioButtons() {
+        container.querySelectorAll('fieldset').forEach(fieldset => {
+            let radios = fieldset.querySelectorAll('input[type="radio"]');
+            let id = fieldset.id.replace("faceswaplab_", "");
+            let value = store.get(id);
+            if (value) {
+                radios.forEach(function (radio) {
+                    state.utils.setValue(radio, value, 'change');
+                });
+            }
+            radios.forEach(function (radio) {
+                radio.addEventListener('change', function () {
                     store.set(id, this.value);
                 });
             });
         });
     }
 
-    function handleRadioButtons() {
-        fslTabs.forEach(({ container, store }) => {
-            let fieldsets = container.querySelectorAll('fieldset');
-            fieldsets.forEach(function (fieldset) {
-                let label = fieldset.firstChild.nextElementSibling;
-                let radios = fieldset.querySelectorAll('input[type="radio"]');
-                let id = state.utils.txtToId(label.textContent);
-                let value = store.get(id);
-                if (value) {
-                    radios.forEach(function (radio) {
-                        state.utils.setValue(radio, value, 'change');
-                    });
-                }
-                radios.forEach(function (radio) {
-                    radio.addEventListener('change', function () {
-                        store.set(id, this.value);
-                    });
+    function handleTextareas() {
+        container.querySelectorAll('.gradio-textbox').forEach(textarea => {
+            let id = textarea.id.replace("faceswaplab_", "");
+            let textField = textarea.querySelector('textarea');
+            let value = store.get(id);
+            if (value) {
+                state.utils.setValue(textField, value, 'change');
+            }
+            
+            const events = ['change', 'input'];
+            events.forEach(event => {
+                textField.addEventListener(event, function () {
+                    store.set(id, this.value);
                 });
             });
         });
@@ -126,6 +147,7 @@ state.extensions['faceswaplab'] = (function () {
             handleSelects();
             handleSliders();
             handleRadioButtons();
+            handleTextareas();
         }, 500);
     }
 
@@ -138,24 +160,8 @@ state.extensions['faceswaplab'] = (function () {
             return;
         }
 
-        let tabs = container.querySelectorAll('.tabitem');
-
-        if (tabs.length) {
-            fslTabs = [];
-            tabs.forEach((tabContainer, i) => {
-                fslTabs.push({
-                    container: tabContainer,
-                    store: new state.Store('ext-faceswaplab-' + i)
-                });
-            });
-        } else {
-            fslTabs = [{
-                container: container,
-                store: new state.Store('ext-faceswaplab-0')
-            }];
-        }
-
         handleToggle();
+        handleUnitToggles();
         load();
     }
 
